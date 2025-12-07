@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Worker REPL</title>
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --panel: #252526;
+      --text: #d4d4d4;
+      --accent: #007acc;
+      --border: #333;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 10px 20px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 { margin: 0; font-size: 1.2rem; }
+
+    .controls { display: flex; gap: 10px; align-items: center; }
+
+    button, select {
+      padding: 8px 12px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    button.secondary { background: #444; }
+    button:hover { opacity: 0.9; }
+
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      min-width: 0;
+    }
+
+    section:last-child { border-right: none; }
+
+    h3 {
+      padding: 10px;
+      margin: 0;
+      background: #2d2d2d;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    textarea {
+      flex: 1;
+      background: var(--bg);
+      color: #9cdcfe;
+      border: none;
+      padding: 15px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      resize: none;
+      outline: none;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #consoleOutput {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      font-family: monospace;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .log-entry.error { color: #ff6b6b; }
+    .log-entry.warn { color: #ffa500; }
+    .log-entry.success { color: #4caf50; }
+
+    .test-area {
+      padding: 10px;
+      background: var(--panel);
+      display: flex;
+      gap: 10px;
+    }
+
+    #msgInput {
+      flex: 1;
+      padding: 8px;
+      background: #3c3c3c;
+      border: 1px solid #555;
+      color: white;
+      border-radius: 4px;
+    }
+
+    .status {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .status.active { color: #4caf50; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Worker REPL</h1>
+    <div class="controls">
+      <select id="workerType">
+        <option value="service">Service Worker</option>
+        <option value="web">Web Worker</option>
+        <option value="shared">Shared Worker</option>
+      </select>
+      <button id="runBtn">Run Code</button>
+      <button id="clearBtn" class="secondary">Clear Logs</button>
+      <span class="status" id="status">Ready</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="editor-pane">
+      <h3>Worker Code</h3>
+      <textarea id="editor" spellcheck="false">// Service Worker example
+self.addEventListener('fetch', event => {
+  console.log('Intercepted:', event.request.url);
+});
+
+self.addEventListener('message', event => {
+  console.log('Received message:', event.data);
+  event.source.postMessage('Echo: ' + event.data);
+});</textarea>
+    </section>
+
+    <section class="console-pane">
+      <h3>Console Output</h3>
+      <div id="consoleOutput"></div>
+      
+      <div class="test-area">
+        <input type="text" id="msgInput" placeholder="Message to worker..." value="Hello worker!">
+        <button id="msgBtn">Send Message</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const editor = document.getElementById('editor');
+      const consoleOut = document.getElementById('consoleOutput');
+      const workerTypeSelect = document.getElementById('workerType');
+      const runBtn = document.getElementById('runBtn');
+      const msgBtn = document.getElementById('msgBtn');
+      const msgInput = document.getElementById('msgInput');
+      const status = document.getElementById('status');
+
+      let currentWorker = null;
+      let swRegistration = null;
+
+      // Logger
+      function log(msg, type = 'info') {
+        const div = document.createElement('div');
+        div.className = `log-entry ${type}`;
+        const timestamp = new Date().toLocaleTimeString();
+        div.textContent = `[${timestamp}] ${typeof msg === 'object' ? JSON.stringify(msg) : msg}`;
+        consoleOut.appendChild(div);
+        consoleOut.scrollTop = consoleOut.scrollHeight;
+      }
+
+      // Console proxy code injected into workers
+      const consoleProxy = `
+const originalLog = console.log;
+const originalWarn = console.warn;
+const originalError = console.error;
+
+const sendLog = (type, args) => {
+  const msg = args.map(a => {
+    try { return typeof a === 'object' ? JSON.stringify(a) : String(a); }
+    catch(e) { return String(a); }
+  }).join(' ');
+  
+  if (self.clients) {
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => client.postMessage({ type: 'log', level: type, message: msg }));
+    });
+  } else if (self.postMessage) {
+    self.postMessage({ type: 'log', level: type, message: msg });
+  }
+};
+
+console.log = function(...args) {
+  sendLog('info', args);
+  originalLog.apply(console, args);
+};
+
+console.warn = function(...args) {
+  sendLog('warn', args);
+  originalWarn.apply(console, args);
+};
+
+console.error = function(...args) {
+  sendLog('error', args);
+  originalError.apply(console, args);
+};
+`;
+
+      // Terminate current worker
+      async function terminateCurrent() {
+        if (currentWorker?.terminate) {
+          currentWorker.terminate();
+          currentWorker = null;
+        }
+        if (swRegistration) {
+          await swRegistration.unregister();
+          swRegistration = null;
+        }
+        status.textContent = 'Terminated';
+        status.className = 'status';
+      }
+
+      // Run Service Worker
+      async function runServiceWorker(code) {
+        const fullCode = consoleProxy + '\n' + code;
+        
+        if (!('serviceWorker' in navigator)) {
+          log('Service Workers not supported', 'error');
+          return;
+        }
+
+        try {
+          // Register the service worker
+          swRegistration = await navigator.serviceWorker.register('./sw-repl.js');
+          await swRegistration.update();
+          
+          // Wait for it to be active
+          if (swRegistration.installing) {
+            await new Promise(resolve => {
+              swRegistration.installing.addEventListener('statechange', function() {
+                if (this.state === 'activated') resolve();
+              });
+            });
+          }
+
+          // Send the code to execute
+          const response = await fetch('/run-code', {
+            method: 'POST',
+            body: fullCode
+          });
+
+          if (response.ok) {
+            log('Service Worker code executed', 'success');
+            status.textContent = 'Active';
+            status.className = 'status active';
+          } else {
+            const error = await response.text();
+            log(`Execution error: ${error}`, 'error');
+          }
+
+          // Listen for messages
+          navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data?.type === 'log') {
+              log(event.data.message, event.data.level || 'info');
+            } else {
+              log(JSON.stringify(event.data), 'success');
+            }
+          });
+
+        } catch (err) {
+          log(`SW Error: ${err.message}`, 'error');
+          status.textContent = 'Error';
+        }
+      }
+
+      // Run Web Worker
+      function runWebWorker(code) {
+        const fullCode = consoleProxy + '\n' + code;
+        const blob = new Blob([fullCode], { type: 'application/javascript' });
+        currentWorker = new Worker(URL.createObjectURL(blob));
+        
+        currentWorker.onmessage = (e) => {
+          if (e.data?.type === 'log') {
+            log(e.data.message, e.data.level || 'info');
+          } else {
+            log(JSON.stringify(e.data), 'success');
+          }
+        };
+
+        currentWorker.onerror = (e) => {
+          log(`Worker error: ${e.message}`, 'error');
+        };
+
+        log('Web Worker started', 'success');
+        status.textContent = 'Active';
+        status.className = 'status active';
+      }
+
+      // Run Shared Worker
+      function runSharedWorker(code) {
+        const fullCode = consoleProxy + '\n' + code;
+        const blob = new Blob([fullCode], { type: 'application/javascript' });
+        const shared = new SharedWorker(URL.createObjectURL(blob));
+        currentWorker = shared;
+        
+        shared.port.start();
+        shared.port.onmessage = (e) => {
+          if (e.data?.type === 'log') {
+            log(e.data.message, e.data.level || 'info');
+          } else {
+            log(JSON.stringify(e.data), 'success');
+          }
+        };
+
+        log('Shared Worker started', 'success');
+        status.textContent = 'Active';
+        status.className = 'status active';
+      }
+
+      // Main run handler
+      async function runCode() {
+        await terminateCurrent();
+        consoleOut.innerHTML = '';
+        
+        const code = editor.value;
+        const type = workerTypeSelect.value;
+
+        log(`Starting ${type} worker...`);
+
+        try {
+          if (type === 'service') {
+            await runServiceWorker(code);
+          } else if (type === 'web') {
+            runWebWorker(code);
+          } else if (type === 'shared') {
+            runSharedWorker(code);
+          }
+        } catch (err) {
+          log(`Error: ${err.message}`, 'error');
+          status.textContent = 'Error';
+        }
+      }
+
+      // Send message to worker
+      function sendMessage() {
+        const txt = msgInput.value;
+        const type = workerTypeSelect.value;
+
+        if (type === 'web' && currentWorker) {
+          currentWorker.postMessage(txt);
+          log(`Sent to Web Worker: ${txt}`, 'info');
+        } else if (type === 'shared' && currentWorker) {
+          currentWorker.port.postMessage(txt);
+          log(`Sent to Shared Worker: ${txt}`, 'info');
+        } else if (type === 'service' && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage(txt);
+          log(`Sent to Service Worker: ${txt}`, 'info');
+        } else {
+          log('Worker not active', 'error');
+        }
+      }
+
+      // Event listeners
+      runBtn.addEventListener('click', runCode);
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        consoleOut.innerHTML = '';
+      });
+      msgBtn.addEventListener('click', sendMessage);
+      msgInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      // Update example code when switching worker types
+      workerTypeSelect.addEventListener('change', () => {
+        const examples = {
+          service: `// Service Worker example
+self.addEventListener('fetch', event => {
+  console.log('Intercepted:', event.request.url);
+});
+
+self.addEventListener('message', event => {
+  console.log('Received message:', event.data);
+  event.source.postMessage('Echo: ' + event.data);
+});`,
+          web: `// Web Worker example
+console.log('Web Worker started!');
+
+self.addEventListener('message', event => {
+  console.log('Received:', event.data);
+  self.postMessage('Echo: ' + event.data);
+});`,
+          shared: `// Shared Worker example
+self.addEventListener('connect', event => {
+  const port = event.ports[0];
+  console.log('Client connected');
+  
+  port.addEventListener('message', e => {
+    console.log('Received:', e.data);
+    port.postMessage('Echo: ' + e.data);
+  });
+  
+  port.start();
+});`
+        };
+        editor.value = examples[workerTypeSelect.value];
+      });
+    })();
+  </script>
+
+  <!-- Service Worker Registration (inline to avoid extra file) -->
+  <script>
+    // This would normally be in sw-repl.js
+    (() => {
+      if (typeof Window === 'undefined') return;
+      
+      // Check if we need to create the SW file
+      if ('serviceWorker' in navigator) {
+        // Create and register the service worker inline
+        const swCode = `
+(() => {
+  if (typeof Window !== 'undefined') return;
+  
+  self.addEventListener('install', event => self.skipWaiting());
+  self.addEventListener('activate', event => self.clients.claim());
+  
+  let userCode = '';
+  
+  self.addEventListener('fetch', event => {
+    const url = new URL(event.request.url);
+    
+    // Handle code execution endpoint
+    if (url.pathname === '/run-code') {
+      event.respondWith(
+        event.request.text().then(code => {
+          try {
+            userCode = code;
+            eval(code);
+            return new Response('Code executed successfully', { status: 200 });
+          } catch (e) {
+            console.error('SW Execution Error:', e);
+            return new Response(e.message, { status: 500 });
+          }
+        })
+      );
+    }
+  });
+})();
+`;
+        
+        // Create a blob URL for the service worker
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        
+        // Store the URL for the app to use
+        window.SW_REPL_URL = swUrl;
+        
+        // The actual registration happens in runServiceWorker
+      }
+    })();
+  </script>
+</body>
+</html>
