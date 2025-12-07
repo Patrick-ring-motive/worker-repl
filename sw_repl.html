@@ -430,57 +430,5 @@ self.addEventListener('connect', event => {
       });
     })();
   </script>
-
-  <!-- Service Worker Registration (inline to avoid extra file) -->
-  <script>
-    // This would normally be in sw-repl.js
-    (() => {
-      if (typeof Window === 'undefined') return;
-      
-      // Check if we need to create the SW file
-      if ('serviceWorker' in navigator) {
-        // Create and register the service worker inline
-        const swCode = `
-(() => {
-  if (typeof Window !== 'undefined') return;
-  
-  self.addEventListener('install', event => self.skipWaiting());
-  self.addEventListener('activate', event => self.clients.claim());
-  
-  let userCode = '';
-  
-  self.addEventListener('fetch', event => {
-    const url = new URL(event.request.url);
-    
-    // Handle code execution endpoint
-    if (url.pathname === '/run-code') {
-      event.respondWith(
-        event.request.text().then(code => {
-          try {
-            userCode = code;
-            eval(code);
-            return new Response('Code executed successfully', { status: 200 });
-          } catch (e) {
-            console.error('SW Execution Error:', e);
-            return new Response(e.message, { status: 500 });
-          }
-        })
-      );
-    }
-  });
-})();
-`;
-        
-        // Create a blob URL for the service worker
-        const blob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(blob);
-        
-        // Store the URL for the app to use
-        window.SW_REPL_URL = swUrl;
-        
-        // The actual registration happens in runServiceWorker
-      }
-    })();
-  </script>
 </body>
 </html>
