@@ -409,8 +409,10 @@ console.error = function(...args) {
         consoleOut.innerHTML = '';
         
         const code = editor.value;
+        console.log({code});
         const type = workerTypeSelect.value;
-
+        console.log({type});
+        
         log(`Starting ${type} worker...`);
 
         try {
