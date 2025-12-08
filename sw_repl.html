@@ -138,6 +138,7 @@
         <option value="service">Service Worker</option>
         <option value="web">Web Worker</option>
         <option value="shared">Shared Worker</option>
+        <option value="audio">Audio Worklet</option>
       </select>
       <button id="runBtn">Run Code</button>
       <button id="clearBtn" class="secondary">Clear Logs</button>
@@ -182,6 +183,8 @@ self.addEventListener('message', event => {
 
       let currentWorker = null;
       let swRegistration = null;
+      let audioContext = null;
+      let audioWorkletNode = null;
 
       // Logger
       function log(msg, type = 'info') {
@@ -239,6 +242,11 @@ console.error = function(...args) {
         if (swRegistration) {
           await swRegistration.unregister();
           swRegistration = null;
+        }
+        if (audioContext) {
+          await audioContext.close();
+          audioContext = null;
+          audioWorkletNode = null;
         }
         status.textContent = 'Terminated';
         status.className = 'status';
@@ -341,6 +349,50 @@ console.error = function(...args) {
         status.className = 'status active';
       }
 
+      // Run Audio Worklet
+      async function runAudioWorklet(code) {
+        try {
+          // Create audio context
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          
+          // Create blob URL for the worklet code
+          const blob = new Blob([code], { type: 'application/javascript' });
+          const blobUrl = URL.createObjectURL(blob);
+          
+          // Add the worklet module
+          await audioContext.audioWorklet.addModule(blobUrl);
+          
+          // Extract the processor name from the code (look for registerProcessor call)
+          const processorMatch = code.match(/registerProcessor\s*\(\s*['"]([^'"]+)['"]/);
+          const processorName = processorMatch ? processorMatch[1] : 'worklet-processor';
+          
+          // Create the worklet node
+          audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
+          
+          // Connect to destination to hear output
+          audioWorkletNode.connect(audioContext.destination);
+          
+          // Listen for messages from the worklet
+          audioWorkletNode.port.onmessage = (e) => {
+            if (e.data?.type === 'log') {
+              log(e.data.message, e.data.level || 'info');
+            } else {
+              log(JSON.stringify(e.data), 'success');
+            }
+          };
+          
+          log(`Audio Worklet started (${processorName})`, 'success');
+          log(`Sample rate: ${audioContext.sampleRate}Hz`, 'info');
+          status.textContent = 'Active';
+          status.className = 'status active';
+          
+          URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+          log(`Audio Worklet error: ${err.message}`, 'error');
+          throw err;
+        }
+      }
+
       // Main run handler
       async function runCode() {
         await terminateCurrent();
@@ -358,6 +410,8 @@ console.error = function(...args) {
             runWebWorker(code);
           } else if (type === 'shared') {
             runSharedWorker(code);
+          } else if (type === 'audio') {
+            await runAudioWorklet(code);
           }
         } catch (err) {
           log(`Error: ${err.message}`, 'error');
@@ -379,6 +433,9 @@ console.error = function(...args) {
         } else if (type === 'service' && navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage(txt);
           log(`Sent to Service Worker: ${txt}`, 'info');
+        } else if (type === 'audio' && audioWorkletNode) {
+          audioWorkletNode.port.postMessage(txt);
+          log(`Sent to Audio Worklet: ${txt}`, 'info');
         } else {
           log('Worker not active', 'error');
         }
@@ -424,10 +481,95 @@ self.addEventListener('connect', event => {
   });
   
   port.start();
-});`
+});`,
+          audio: `// Audio Worklet example - Simple sine wave oscillator
+class SineProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.phase = 0;
+    this.frequency = 440; // A4 note
+    
+    this.port.onmessage = (e) => {
+      if (typeof e.data === 'number') {
+        this.frequency = e.data;
+        this.port.postMessage({ type: 'log', message: 'Frequency set to ' + e.data + 'Hz' });
+      }
+    };
+  }
+  
+  process(inputs, outputs, parameters) {
+    const output = outputs[0];
+    const sampleRate = 48000; // Approximate
+    
+    for (let channel = 0; channel < output.length; channel++) {
+      const outputChannel = output[channel];
+      for (let i = 0; i < outputChannel.length; i++) {
+        outputChannel[i] = Math.sin(this.phase) * 0.3;
+        this.phase += (2 * Math.PI * this.frequency) / sampleRate;
+        if (this.phase > 2 * Math.PI) this.phase -= 2 * Math.PI;
+      }
+    }
+    
+    return true; // Keep processor alive
+  }
+}
+
+registerProcessor('worklet-processor', SineProcessor);`
         };
         editor.value = examples[workerTypeSelect.value];
       });
+    })();
+  </script>
+
+  <!-- Service Worker Registration (inline to avoid extra file) -->
+  <script>
+    // This would normally be in sw-repl.js
+    (() => {
+      if (typeof Window === 'undefined') return;
+      
+      // Check if we need to create the SW file
+      if ('serviceWorker' in navigator) {
+        // Create and register the service worker inline
+        const swCode = `
+(() => {
+  if (typeof Window !== 'undefined') return;
+  
+  self.addEventListener('install', event => self.skipWaiting());
+  self.addEventListener('activate', event => self.clients.claim());
+  
+  let userCode = '';
+  
+  self.addEventListener('fetch', event => {
+    const url = new URL(event.request.url);
+    
+    // Handle code execution endpoint
+    if (url.pathname === '/run-code') {
+      event.respondWith(
+        event.request.text().then(code => {
+          try {
+            userCode = code;
+            eval(code);
+            return new Response('Code executed successfully', { status: 200 });
+          } catch (e) {
+            console.error('SW Execution Error:', e);
+            return new Response(e.message, { status: 500 });
+          }
+        })
+      );
+    }
+  });
+})();
+`;
+        
+        // Create a blob URL for the service worker
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        
+        // Store the URL for the app to use
+        window.SW_REPL_URL = swUrl;
+        
+        // The actual registration happens in runServiceWorker
+      }
     })();
   </script>
 </body>
