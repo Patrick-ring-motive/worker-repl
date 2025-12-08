@@ -262,18 +262,28 @@ console.error = function(...args) {
         }
 
         try {
+          // Unregister any existing SW first
+          const existing = await navigator.serviceWorker.getRegistration();
+          if (existing) {
+            await existing.unregister();
+            log('Unregistered old service worker', 'info');
+          }
+
           // Register the service worker
           swRegistration = await navigator.serviceWorker.register('./sw-repl.js');
-          await swRegistration.update();
+          log('Service Worker registered', 'info');
           
-          // Wait for it to be active
-          if (swRegistration.installing) {
+          // Wait for the SW to be ready and controlling
+          await navigator.serviceWorker.ready;
+          
+          // Wait for controller to be available
+          if (!navigator.serviceWorker.controller) {
             await new Promise(resolve => {
-              swRegistration.installing.addEventListener('statechange', function() {
-                if (this.state === 'activated') resolve();
-              });
+              navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
             });
           }
+          
+          log('Service Worker controlling page', 'info');
 
           // Send the code to execute
           const response = await fetch('/run-code', {
