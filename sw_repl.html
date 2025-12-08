@@ -408,9 +408,9 @@ console.error = function(...args) {
         await terminateCurrent();
         consoleOut.innerHTML = '';
         
-        const code = editor.value;
+        const code = document.getElementById('editor').value;
         console.log({code});
-        const type = workerTypeSelect.value;
+        const type = document.getElementById('workerType').value;
         console.log({type});
         
         log(`Starting ${type} worker...`);
@@ -433,8 +433,8 @@ console.error = function(...args) {
 
       // Send message to worker
       function sendMessage() {
-        const txt = msgInput.value;
-        const type = workerTypeSelect.value;
+        const txt = document.getElementById('msgInput').value;
+        const type = document.getElementById('workerType').value;
 
         if (type === 'web' && currentWorker) {
           currentWorker.postMessage(txt);
@@ -528,7 +528,7 @@ class SineProcessor extends AudioWorkletProcessor {
 
 registerProcessor('worklet-processor', SineProcessor);`
         };
-        editor.value = examples[workerTypeSelect.value];
+        editor.value = examples[document.getElementById('workerType').value];
       });
     })();
   </script>
