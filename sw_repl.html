@@ -435,21 +435,24 @@ console.error = function(...args) {
       function sendMessage() {
         const txt = document.getElementById('msgInput').value;
         const type = document.getElementById('workerType').value;
-
-        if (type === 'web' && currentWorker) {
-          currentWorker.postMessage(txt);
-          log(`Sent to Web Worker: ${txt}`, 'info');
-        } else if (type === 'shared' && currentWorker) {
-          currentWorker.port.postMessage(txt);
-          log(`Sent to Shared Worker: ${txt}`, 'info');
-        } else if (type === 'service' && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage(txt);
-          log(`Sent to Service Worker: ${txt}`, 'info');
-        } else if (type === 'audio' && audioWorkletNode) {
-          audioWorkletNode.port.postMessage(txt);
-          log(`Sent to Audio Worklet: ${txt}`, 'info');
-        } else {
-          log('Worker not active', 'error');
+        try{
+                if (type === 'web') {
+                  currentWorker.postMessage(txt);
+                  log(`Sent to Web Worker: ${txt}`, 'info');
+                } else if (type === 'shared') {
+                  currentWorker.port.postMessage(txt);
+                  log(`Sent to Shared Worker: ${txt}`, 'info');
+                } else if (type === 'service') {
+                  navigator.serviceWorker.controller.postMessage(txt);
+                  log(`Sent to Service Worker: ${txt}`, 'info');
+                } else if (type === 'audio') {
+                  audioWorkletNode.port.postMessage(txt);
+                  log(`Sent to Audio Worklet: ${txt}`, 'info');
+                } else {
+                  log('Worker not active', 'error');
+                }
+        }catch(e){
+          log(`${e?.message} ${type}`,'error')
         }
       }
 
