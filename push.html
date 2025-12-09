@@ -1,0 +1,9 @@
+<script>
+  navigator.serviceWorker
+  .register("serviceworker.js")
+  .then((serviceWorkerRegistration) => {
+    serviceWorkerRegistration.pushManager.subscribe().then(
+      (pushSubscription) => {
+        console.log(pushSubscription.subscriptionId);
+        console.log(pushSubscription.endpoint);
+</script>
