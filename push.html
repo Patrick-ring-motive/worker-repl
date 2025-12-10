@@ -1,6 +1,10 @@
 <link rel="manifest" href="manifest.json"></link>
 <script src="https://cdn.jsdelivr.net/npm/core-js-bundle/index.js"></script>
 <script type="module">
+  const bc = new BroadcastChannel("web-push");
+  bc.onmessage = (event) => {
+    console.log("web-push recieved",event);
+  };
   function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
