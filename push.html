@@ -5,7 +5,7 @@
   const serviceWorkerRegistration = await navigator.serviceWorker.register("push.js");
   const pushSubscription = await serviceWorkerRegistration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: Uint8Array.fromBase64('YOUR_VAPID_PUBLIC_KEY_HERE')
+    applicationServerKey: Uint8Array.fromBase64('BHFL0Kba4iL2brnJ1HRVXUxpl_jT5zM5G6PJo5k8M7zBou3ysd00noQwqQApKQVDzz7_GxmWbAozsvGh0xeCXM0')
   });
   console.log(pushSubscription.subscriptionId);
   console.log(pushSubscription.endpoint);
