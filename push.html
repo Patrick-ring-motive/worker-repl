@@ -16,7 +16,7 @@
   return outputArray;
 }
   const registration = await navigator.serviceWorker.ready;
-  const serviceWorkerRegistration = await navigator.serviceWorker.register("./push.js");
+  const serviceWorkerRegistration = await navigator.serviceWorker.register("https://patrick-ring-motive.github.io/worker-repl/push.js");
   const subscription = await serviceWorkerRegistration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array('BHFL0Kba4iL2brnJ1HRVXUxpl_jT5zM5G6PJo5k8M7zBou3ysd00noQwqQApKQVDzz7_GxmWbAozsvGh0xeCXM0')
