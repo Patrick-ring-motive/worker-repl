@@ -1,3 +1,5 @@
+const bc = new BroadcastChannel("web-push");
+
 const stringify = x =>{
   try{
     return JSON.stringify(x);
@@ -18,10 +20,8 @@ const stringify = x =>{
   });
 
   self.addEventListener('push', (event) => {
-  console.log('Push received:', event.data);
-  
   const data = event.data ? event.data.json() : {};
-  
+  bc.postMessage(stringify(data));
   event.waitUntil(
     self.registration.showNotification(data.title || 'Notification', {
       body: stringify(data) ,
