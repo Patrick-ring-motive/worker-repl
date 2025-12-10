@@ -8,7 +8,7 @@
     applicationServerKey: Uint8Array.fromBase64('BHFL0Kba4iL2brnJ1HRVXUxpl_jT5zM5G6PJo5k8M7zBou3ysd00noQwqQApKQVDzz7_GxmWbAozsvGh0xeCXM0')
   });
   let payload = "test";
-  fetch('https://wix-or-cloudflare-endpoint.com/send', {
+  fetch('https://push.smokestack.workers.dev/', {
     method: 'POST',
     body: JSON.stringify({subscription, payload})
   });
