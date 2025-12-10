@@ -1,7 +1,10 @@
 <script type="module">
-  globalThis.onpush = (event) => console.log(event.data);
+  const registration = await navigator.serviceWorker.ready;
   const serviceWorkerRegistration = await navigator.serviceWorker.register("push.js");
-  const pushSubscription = await serviceWorkerRegistration.pushManager.subscribe();
+  const pushSubscription = await serviceWorkerRegistration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: Uint8Array.fromBase64('YOUR_VAPID_PUBLIC_KEY_HERE')
+  });
   console.log(pushSubscription.subscriptionId);
   console.log(pushSubscription.endpoint);
 </script>
