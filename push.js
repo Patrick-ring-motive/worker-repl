@@ -1,4 +1,10 @@
-
+const stringify = x =>{
+  try{
+    return JSON.stringify(x);
+  }catch{
+    return String(x);
+  }
+};
 
 (() => {
   if (typeof Window !== 'undefined') return;
@@ -18,7 +24,7 @@
   
   event.waitUntil(
     self.registration.showNotification(data.title || 'Notification', {
-      body: data.body || 'You have a new message',
+      body: stringify(data) ,
       icon: '/icon.png'
     })
   );
