@@ -1,4 +1,5 @@
 <script type="module">
+  globalThis.onpush = (event) => console.log(event.data);
   const serviceWorkerRegistration = await navigator.serviceWorker.register("push.js");
   const pushSubscription = await serviceWorkerRegistration.pushManager.subscribe();
   console.log(pushSubscription.subscriptionId);
