@@ -26,13 +26,15 @@ const json = data =>{
   });
 
   self.addEventListener('push', (event) => {
-  const data = json(event.data);
-  bc.postMessage(stringify(data));
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Notification', {
-      body: stringify(data) ,
-      icon: '/icon.png'
-    })
-  );
+    console.log(event.data);
+    const data = json(event.data);
+    console.log(data);
+    bc.postMessage(stringify(data));
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Notification', {
+        body: stringify(data) ,
+        icon: '/icon.png'
+      })
+    );
 });
 })();
