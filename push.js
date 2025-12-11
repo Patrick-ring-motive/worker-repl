@@ -7,7 +7,13 @@ const stringify = x =>{
     return String(x);
   }
 };
-
+const json = data =>{
+  try{
+    return data.json();
+  }catch{
+    return data;
+  }
+};
 (() => {
   if (typeof Window !== 'undefined') return;
   
@@ -20,7 +26,7 @@ const stringify = x =>{
   });
 
   self.addEventListener('push', (event) => {
-  const data = event.data?.json?.();
+  const data = json(event.data);
   bc.postMessage(stringify(data));
   event.waitUntil(
     self.registration.showNotification(data.title || 'Notification', {
