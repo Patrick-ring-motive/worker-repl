@@ -1,10 +1,17 @@
 <link rel="manifest" href="manifest.json"></link>
 <script src="https://cdn.jsdelivr.net/npm/core-js-bundle/index.js"></script>
 <script type="module">
+  const stringify = x =>{
+    try{
+      return JSON.stringify(x);
+    }catch{
+      return String(x);
+    }
+  };
   const bc = new BroadcastChannel("web-push");
   bc.onmessage = (event) => {
     console.log("web-push recieved",event);
-    document.body.innerHTML += `${event.data}<br><br>`;
+    document.body.innerHTML += `${Stringify(event.data)}<br><br>`;
   };
   function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
