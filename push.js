@@ -20,7 +20,7 @@ const stringify = x =>{
   });
 
   self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
+  const data = event.data;
   bc.postMessage(stringify(data));
   event.waitUntil(
     self.registration.showNotification(data.title || 'Notification', {
