@@ -11,7 +11,7 @@
   const bc = new BroadcastChannel("web-push");
   bc.onmessage = (event) => {
     console.log("web-push recieved",event);
-    document.body.innerHTML += `${Stringify(event.data)}<br><br>`;
+    document.body.innerHTML += `${stringify(event.data)}<br><br>`;
   };
   function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
