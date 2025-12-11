@@ -1,6 +1,8 @@
 <link rel="manifest" href="manifest.json"></link>
 <script src="https://cdn.jsdelivr.net/npm/core-js-bundle/index.js"></script>
+<script src="https://patrick-ring-motive.github.io/stash-store/stash.js"></script>
 <script type="module">
+  
 const stringify = x =>{
   try{
     return JSON.stringify(x).replace(/^[\\"\s]*|[\\"\s]*$/g,'');
@@ -8,6 +10,12 @@ const stringify = x =>{
     return String(x).replace(/^[\\"\s]*|[\\"\s]*$/g,'');
   }
 };
+  const stash = new Stash();
+  let publicKey = await stash.get('public-key');
+  if(!publicKey){
+    publicKey = await(await fetch('https://push.smokestack.workers.dev/public-key')).text();
+    await stash.set('public-key',publicKey);
+  }
   const bc = new BroadcastChannel("web-push");
   bc.onmessage = (event) => {
     console.log("web-push recieved",event);
@@ -31,7 +39,7 @@ const stringify = x =>{
   const registration = await navigator.serviceWorker.ready;
   const subscription = await serviceWorkerRegistration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(await(await fetch('https://push.smokestack.workers.dev/public-key')).text())
+    applicationServerKey: urlBase64ToUint8Array(publicKey)
   });
   let payload = navigator.userAgentData.platform;
   fetch('https://push.smokestack.workers.dev/', {
