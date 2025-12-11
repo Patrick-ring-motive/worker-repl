@@ -1,13 +1,13 @@
 <link rel="manifest" href="manifest.json"></link>
 <script src="https://cdn.jsdelivr.net/npm/core-js-bundle/index.js"></script>
 <script type="module">
-  const stringify = x =>{
-    try{
-      return JSON.stringify(x);
-    }catch{
-      return String(x);
-    }
-  };
+const stringify = x =>{
+  try{
+    return JSON.stringify(x).replace(/^["\s]*|["\s]*$/g,'');
+  }catch{
+    return String(x).replace(/^["\s]*|["\s]*$/g,'');
+  }
+};
   const bc = new BroadcastChannel("web-push");
   bc.onmessage = (event) => {
     console.log("web-push recieved",event);
