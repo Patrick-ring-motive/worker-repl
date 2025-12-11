@@ -11,7 +11,7 @@ const json = data =>{
   try{
     return data.json();
   }catch{
-    return data;
+    return data?.text?.() ?? data;
   }
 };
 (() => {
