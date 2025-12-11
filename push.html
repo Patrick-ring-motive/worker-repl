@@ -31,7 +31,7 @@ const stringify = x =>{
   const registration = await navigator.serviceWorker.ready;
   const subscription = await serviceWorkerRegistration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array('BHFL0Kba4iL2brnJ1HRVXUxpl_jT5zM5G6PJo5k8M7zBou3ysd00noQwqQApKQVDzz7_GxmWbAozsvGh0xeCXM0')
+    applicationServerKey: urlBase64ToUint8Array(await(await fetch('https://push.smokestack.workers.dev/public-key')).text())
   });
   let payload = navigator.userAgentData.platform;
   fetch('https://push.smokestack.workers.dev/', {
