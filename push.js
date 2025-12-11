@@ -2,9 +2,9 @@ const bc = new BroadcastChannel("web-push");
 
 const stringify = x =>{
   try{
-    return JSON.stringify(x).replace(/^["\s]*|["\s]*$/g,'');
+    return JSON.stringify(x).replace(/^[\\"\s]*|[\\"\s]*$/g,'');
   }catch{
-    return String(x).replace(/^["\s]*|["\s]*$/g,'');
+    return String(x).replace(/^[\\"\s]*|[\\"\s]*$/g,'');
   }
 };
 const json = data =>{
