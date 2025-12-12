@@ -37,10 +37,10 @@ const stringify = x =>{
 }
   const serviceWorkerRegistration = await navigator.serviceWorker.register("https://patrick-ring-motive.github.io/worker-repl/push.js");
   const registration = await navigator.serviceWorker.ready;
-  const subscription = await serviceWorkerRegistration.pushManager.subscribe({
+  const subscription = await serviceWorkerRegistration?.pushManager?.subscribe?.({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(publicKey)
-  });
+  }) ?? {};
   let payload = navigator.userAgentData.platform;
   fetch('https://push.smokestack.workers.dev/', {
     method: 'POST',
