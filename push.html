@@ -3,7 +3,7 @@
 <script src="https://cdn.jsdelivr.net/npm/core-js-bundle/index.js"></script>
 <script src="https://patrick-ring-motive.github.io/stash-store/stash.js"></script>
 <script type="module">
-  function push(input){
+  async function push(input){
 try{
 const stringify = x =>{
   try{
@@ -53,6 +53,9 @@ const stringify = x =>{
 }catch(e){
   document.firstElementChild.innerHTML += `${String(e?.message??e)}<br><br>`;
 }
+  document.querySelector('button').onclick = ()=>{
+    push(document.querySelector('input').value);
+  };
   }
   push();
   document.querySelector('button').onclick = ()=>{
