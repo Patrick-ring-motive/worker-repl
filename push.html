@@ -1,7 +1,9 @@
+<table><tr><td><input></input></td><td><button>send</button></td></tr></table>
 <link rel="manifest" href="manifest.json"></link>
 <script src="https://cdn.jsdelivr.net/npm/core-js-bundle/index.js"></script>
 <script src="https://patrick-ring-motive.github.io/stash-store/stash.js"></script>
 <script type="module">
+  function push(input){
 try{
 const stringify = x =>{
   try{
@@ -41,7 +43,7 @@ const stringify = x =>{
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(publicKey)
   }) ?? {};
-  let payload = String(navigator?.userAgentData?.platform);
+  let payload = input || String(navigator?.userAgentData?.platform);
   fetch('https://push.smokestack.workers.dev/', {
     method: 'POST',
     body: JSON.stringify({subscription, payload})
@@ -51,4 +53,9 @@ const stringify = x =>{
 }catch(e){
   document.firstElementChild.innerHTML += `${String(e?.message??e)}<br><br>`;
 }
+  }
+  push();
+  document.querySelector('button').onclick = ()=>{
+    push(document.querySelector('input').value);
+  };
 </script>
