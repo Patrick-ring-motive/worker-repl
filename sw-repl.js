@@ -21,8 +21,8 @@
     
     // Handle code execution endpoint
     if (url.pathname === '/run-code') {
-      event.respondWith(
-        event.request.text().then(code => {
+      event.respondWith((async()=>{
+        const code = await event.request.text();
           try {
             userCode = code;
             eval(code);
@@ -31,8 +31,9 @@
             console.error('SW Execution Error:', e);
             return new Response(e.message, { status: 500 });
           }
-        })
-      );
+      })());
+    }else{
+        event.respondWith(event.request);
     }
   });
 })();
