@@ -1,65 +1,76 @@
-<table><tr><td><input></input></td><td><button onclick="sendPush()">send</button></td></tr></table>
-<link rel="manifest" href="manifest.json"></link>
+<table>
+  <tr>
+    <td><input></input></td>
+    <td><button onclick="sendPush()">send</button></td>
+  </tr>
+</table>
+<link rel="manifest" href="manifest.json">
+</link>
 <script src="https://cdn.jsdelivr.net/npm/core-js-bundle/index.js"></script>
 <script src="https://patrick-ring-motive.github.io/stash-store/stash.js"></script>
 <script type="module">
-  async function push(input){
-try{
-const stringify = x =>{
-  try{
-    return JSON.stringify(x).replace(/^[\\"\s]*|[\\"\s]*$/g,'');
-  }catch{
-    return String(x).replace(/^[\\"\s]*|[\\"\s]*$/g,'');
+  async function push(input) {
+    try {
+      const stringify = x => {
+        try {
+          return JSON.stringify(x).replace(/^[\\"\s]*|[\\"\s]*$/g, '');
+        } catch {
+          return String(x).replace(/^[\\"\s]*|[\\"\s]*$/g, '');
+        }
+      };
+      const stash = new Stash();
+      let publicKey = await stash.get('public-key');
+      if (!publicKey) {
+        publicKey = await (await fetch('https://push.smokestack.workers.dev/public-key')).text();
+        await stash.set('public-key', publicKey);
+      }
+      const bc = new BroadcastChannel("web-push");
+      bc.onmessage = (event) => {
+        console.log("web-push recieved", event);
+        document.body.innerHTML += `${stringify(event.data)}<br><br>`;
+      };
+
+      function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+          .replace(/\-/g, '+')
+          .replace(/_/g, '/');
+
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      }
+      const serviceWorkerRegistration = await navigator.serviceWorker.register("https://patrick-ring-motive.github.io/worker-repl/push.js");
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await serviceWorkerRegistration?.pushManager?.subscribe?.({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      }) ?? {};
+      let payload = input || String(navigator?.userAgentData?.platform);
+      fetch('https://push.smokestack.workers.dev/', {
+        method: 'POST',
+        body: JSON.stringify({
+          subscription,
+          payload
+        })
+      });
+      console.log(subscription.subscriptionId);
+      console.log(subscription.endpoint);
+    } catch (e) {
+      document.firstElementChild.innerHTML += `${String(e?.message??e)}<br><br>`;
+    }
+    document.querySelector('button').onclick = () => {
+      push(document.querySelector('input').value);
+    };
   }
-};
-  const stash = new Stash();
-  let publicKey = await stash.get('public-key');
-  if(!publicKey){
-    publicKey = await(await fetch('https://push.smokestack.workers.dev/public-key')).text();
-    await stash.set('public-key',publicKey);
-  }
-  const bc = new BroadcastChannel("web-push");
-  bc.onmessage = (event) => {
-    console.log("web-push recieved",event);
-    document.body.innerHTML += `${stringify(event.data)}<br><br>`;
-  };
-  function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-  
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-  const serviceWorkerRegistration = await navigator.serviceWorker.register("https://patrick-ring-motive.github.io/worker-repl/push.js");
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await serviceWorkerRegistration?.pushManager?.subscribe?.({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey)
-  }) ?? {};
-  let payload = input || String(navigator?.userAgentData?.platform);
-  fetch('https://push.smokestack.workers.dev/', {
-    method: 'POST',
-    body: JSON.stringify({subscription, payload})
-  });
-  console.log(subscription.subscriptionId);
-  console.log(subscription.endpoint);
-}catch(e){
-  document.firstElementChild.innerHTML += `${String(e?.message??e)}<br><br>`;
-}
-  document.querySelector('button').onclick = ()=>{
-    push(document.querySelector('input').value);
-  };
-  }
-  
- globalThis.sendPush = ()=>{
+
+  globalThis.sendPush = () => {
     push(document.querySelector('input').value);
   };
   push();
+
 </script>
