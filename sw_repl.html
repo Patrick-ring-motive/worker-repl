@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,7 +14,9 @@
       --border: #333;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -34,11 +37,19 @@
       align-items: center;
     }
 
-    h1 { margin: 0; font-size: 1.2rem; }
+    h1 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
 
-    .controls { display: flex; gap: 10px; align-items: center; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
 
-    button, select {
+    button,
+    select {
       padding: 8px 12px;
       background: var(--accent);
       color: white;
@@ -48,8 +59,13 @@
       font-size: 14px;
     }
 
-    button.secondary { background: #444; }
-    button:hover { opacity: 0.9; }
+    button.secondary {
+      background: #444;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
 
     main {
       display: flex;
@@ -65,7 +81,9 @@
       min-width: 0;
     }
 
-    section:last-child { border-right: none; }
+    section:last-child {
+      border-right: none;
+    }
 
     h3 {
       padding: 10px;
@@ -102,9 +120,18 @@
       padding: 4px 0;
       border-bottom: 1px solid #2a2a2a;
     }
-    .log-entry.error { color: #ff6b6b; }
-    .log-entry.warn { color: #ffa500; }
-    .log-entry.success { color: #4caf50; }
+
+    .log-entry.error {
+      color: #ff6b6b;
+    }
+
+    .log-entry.warn {
+      color: #ffa500;
+    }
+
+    .log-entry.success {
+      color: #4caf50;
+    }
 
     .test-area {
       padding: 10px;
@@ -127,9 +154,13 @@
       color: #888;
     }
 
-    .status.active { color: #4caf50; }
+    .status.active {
+      color: #4caf50;
+    }
+
   </style>
 </head>
+
 <body>
   <header>
     <h1>Worker REPL</h1>
@@ -163,7 +194,7 @@ self.addEventListener('message', event => {
     <section class="console-pane">
       <h3>Console Output</h3>
       <div id="consoleOutput"></div>
-      
+
       <div class="test-area">
         <input type="text" id="msgInput" placeholder="Message to worker..." value="Hello worker!">
         <button id="msgBtn">Send Message</button>
@@ -255,7 +286,7 @@ console.error = function(...args) {
       // Run Service Worker
       async function runServiceWorker(code) {
         const fullCode = consoleProxy + '\n' + code;
-        
+
         if (!('serviceWorker' in navigator)) {
           log('Service Workers not supported', 'error');
           return;
@@ -272,17 +303,19 @@ console.error = function(...args) {
           // Register the service worker
           swRegistration = await navigator.serviceWorker.register('./sw-repl.js');
           log('Service Worker registered', 'info');
-          
+
           // Wait for the SW to be ready and controlling
           await navigator.serviceWorker.ready;
-          
+
           // Wait for controller to be available
           if (!navigator.serviceWorker.controller) {
             await new Promise(resolve => {
-              navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
+              navigator.serviceWorker.addEventListener('controllerchange', resolve, {
+                once: true
+              });
             });
           }
-          
+
           log('Service Worker controlling page', 'info');
 
           // Send the code to execute
@@ -318,9 +351,11 @@ console.error = function(...args) {
       // Run Web Worker
       function runWebWorker(code) {
         const fullCode = consoleProxy + '\n' + code;
-        const blob = new Blob([fullCode], { type: 'application/javascript' });
+        const blob = new Blob([fullCode], {
+          type: 'application/javascript'
+        });
         currentWorker = new Worker(URL.createObjectURL(blob));
-        
+
         currentWorker.onmessage = (e) => {
           if (e.data?.type === 'log') {
             log(e.data.message, e.data.level || 'info');
@@ -341,10 +376,12 @@ console.error = function(...args) {
       // Run Shared Worker
       function runSharedWorker(code) {
         const fullCode = consoleProxy + '\n' + code;
-        const blob = new Blob([fullCode], { type: 'application/javascript' });
+        const blob = new Blob([fullCode], {
+          type: 'application/javascript'
+        });
         const shared = new SharedWorker(URL.createObjectURL(blob));
         currentWorker = shared;
-        
+
         shared.port.start();
         shared.port.onmessage = (e) => {
           if (e.data?.type === 'log') {
@@ -363,25 +400,27 @@ console.error = function(...args) {
       async function runAudioWorklet(code) {
         try {
           // Create audio context
-          audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          
+          audioContext = new(window.AudioContext || window.webkitAudioContext)();
+
           // Create blob URL for the worklet code
-          const blob = new Blob([code], { type: 'application/javascript' });
+          const blob = new Blob([code], {
+            type: 'application/javascript'
+          });
           const blobUrl = URL.createObjectURL(blob);
-          
+
           // Add the worklet module
           await audioContext.audioWorklet.addModule(blobUrl);
-          
+
           // Extract the processor name from the code (look for registerProcessor call)
           const processorMatch = code.match(/registerProcessor\s*\(\s*['"]([^'"]+)['"]/);
           const processorName = processorMatch ? processorMatch[1] : 'worklet-processor';
-          
+
           // Create the worklet node
           audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
-          
+
           // Connect to destination to hear output
           audioWorkletNode.connect(audioContext.destination);
-          
+
           // Listen for messages from the worklet
           audioWorkletNode.port.onmessage = (e) => {
             if (e.data?.type === 'log') {
@@ -390,12 +429,12 @@ console.error = function(...args) {
               log(JSON.stringify(e.data), 'success');
             }
           };
-          
+
           log(`Audio Worklet started (${processorName})`, 'success');
           log(`Sample rate: ${audioContext.sampleRate}Hz`, 'info');
           status.textContent = 'Active';
           status.className = 'status active';
-          
+
           URL.revokeObjectURL(blobUrl);
         } catch (err) {
           log(`Audio Worklet error: ${err.message}`, 'error');
@@ -407,12 +446,16 @@ console.error = function(...args) {
       async function runCode() {
         await terminateCurrent();
         consoleOut.innerHTML = '';
-        
+
         const code = document.getElementById('editor').value;
-        console.log({code});
+        console.log({
+          code
+        });
         const type = document.getElementById('workerType').value;
-        console.log({type});
-        
+        console.log({
+          type
+        });
+
         log(`Starting ${type} worker...`);
 
         try {
@@ -435,24 +478,24 @@ console.error = function(...args) {
       function sendMessage() {
         const txt = document.getElementById('msgInput').value;
         const type = document.getElementById('workerType').value;
-        try{
-                if (type === 'web') {
-                  currentWorker.postMessage(txt);
-                  log(`Sent to Web Worker: ${txt}`, 'info');
-                } else if (type === 'shared') {
-                  currentWorker.port.postMessage(txt);
-                  log(`Sent to Shared Worker: ${txt}`, 'info');
-                } else if (type === 'service') {
-                  navigator.serviceWorker.controller.postMessage(txt);
-                  log(`Sent to Service Worker: ${txt}`, 'info');
-                } else if (type === 'audio') {
-                  audioWorkletNode.port.postMessage(txt);
-                  log(`Sent to Audio Worklet: ${txt}`, 'info');
-                } else {
-                  log('Worker not active', 'error');
-                }
-        }catch(e){
-          log(`${e?.message} ${type}`,'error')
+        try {
+          if (type === 'web') {
+            currentWorker.postMessage(txt);
+            log(`Sent to Web Worker: ${txt}`, 'info');
+          } else if (type === 'shared') {
+            currentWorker.port.postMessage(txt);
+            log(`Sent to Shared Worker: ${txt}`, 'info');
+          } else if (type === 'service') {
+            navigator.serviceWorker.controller.postMessage(txt);
+            log(`Sent to Service Worker: ${txt}`, 'info');
+          } else if (type === 'audio') {
+            audioWorkletNode.port.postMessage(txt);
+            log(`Sent to Audio Worklet: ${txt}`, 'info');
+          } else {
+            log('Worker not active', 'error');
+          }
+        } catch (e) {
+          log(`${e?.message} ${type}`, 'error')
         }
       }
 
@@ -534,6 +577,7 @@ registerProcessor('worklet-processor', SineProcessor);`
         editor.value = examples[document.getElementById('workerType').value];
       });
     })();
+
   </script>
 
   <!-- Service Worker Registration (inline to avoid extra file) -->
@@ -541,7 +585,7 @@ registerProcessor('worklet-processor', SineProcessor);`
     // This would normally be in sw-repl.js
     (() => {
       if (typeof Window === 'undefined') return;
-      
+
       // Check if we need to create the SW file
       if ('serviceWorker' in navigator) {
         // Create and register the service worker inline
@@ -575,17 +619,21 @@ registerProcessor('worklet-processor', SineProcessor);`
   });
 })();
 `;
-        
+
         // Create a blob URL for the service worker
-        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const blob = new Blob([swCode], {
+          type: 'application/javascript'
+        });
         const swUrl = URL.createObjectURL(blob);
-        
+
         // Store the URL for the app to use
         window.SW_REPL_URL = swUrl;
-        
+
         // The actual registration happens in runServiceWorker
       }
     })();
+
   </script>
 </body>
+
 </html>
